@@ -43,18 +43,21 @@ contract Voting {
   }
 }
 
-/**
- * The Ownership contract does this and that...
- */
 contract Ownership {
+  
   uint hashBlock1;
   uint hashBlock2;
-  function setOwnership (uint h1, uint h2) public {
-    hashBlock1 = h1;
-    hashBlock1 = h2;
+  string c;
+  event Insertion(string s);
+  event Reading(uint h1, uint h2);
+  function setOwnership (string s) payable public {
+    c =s;
+    emit Insertion(c);
   }
-  function getOwnersList() public view returns (uint, uint) {
-    return (hashBlock1, hashBlock2);
+  function getOwnersList() public  payable returns (uint h, uint h_) {
+    h = hashBlock1;
+    h_ = hashBlock2;
+    emit Reading(hashBlock1, hashBlock2);
   }
 }
 
@@ -78,6 +81,10 @@ contract DeletionRequest {
       h2 = h_; 
   }
 
+  function isPending () public view returns(bool res) {
+    res = !requestEnded;
+  }
+  
   function stopReq () public payable {
     if (msg.sender == owner) 
       requestEnded = true;
