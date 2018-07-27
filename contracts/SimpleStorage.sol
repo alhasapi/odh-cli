@@ -44,15 +44,15 @@ contract Voting {
 }
 
 contract Ownership {
-  
   uint hashBlock1;
   uint hashBlock2;
-  string c;
-  event Insertion(string s);
+  event Insertion(uint h, uint h_);
   event Reading(uint h1, uint h2);
-  function setOwnership (string s) payable public {
-    c =s;
-    emit Insertion(c);
+
+  function setOwnership (uint h, uint h_) payable public {
+    hashBlock1 = h;
+    hashBlock2 = h_;
+    emit Insertion(h, h_);
   }
   function getOwnersList() public  payable returns (uint h, uint h_) {
     h = hashBlock1;
@@ -67,26 +67,31 @@ contract Ownership {
 contract DeletionRequest {
   uint h1;
   uint h2;
+
   address owner;
-  bool requestEnded;
+  bool pending;
 
   constructor () public {
-    owner = msg.sender;
-    requestEnded = false;
+    pending = false;
   }  
 
-  function setHash(uint h, uint h_) public payable {
-    if (!requestEnded)
+  function setRequest(uint h, uint h_) public payable {
+      owner = msg.sender;
       h1 = h;
       h2 = h_; 
+      pending = true;
   }
 
   function isPending () public view returns(bool res) {
-    res = !requestEnded;
+    return pending;
   }
-  
+ 
+  function getHash () public view returns(uint, uint)  {
+      return (h1, h2);
+   }
+    
   function stopReq () public payable {
     if (msg.sender == owner) 
-      requestEnded = true;
+      pending = false;
   }
 }

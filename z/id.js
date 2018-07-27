@@ -6,8 +6,8 @@ const program = require("commander");
 //const contractAddress = "0x14a0a8f85f7041c1bed7a372479821f0caf09b63";
 //var contractJsonInterface = JSON.parse(fs.readFileSync(contractFIle).toString());
 //var contract = new web3.eth.Contract(contractJsonInterface, contractAddress);
-let cost = 1000000000;
-let gas = 10000000;
+let cost = 10000000000000000000000000;
+let gas = 1000000;
 let configFileName = "./.conf.json"
 let hashesBase = "./.HashBases.json"
 let owners = "./.owners.txt"
@@ -52,19 +52,16 @@ program
     .option('--owning <file>', 'Registering an ownership claim')
     .option('--claim-of-ownership <hash>', 'Checking wether a claim of ownership is valid')
     .option('--webui', 'Lauching the web user interface')
-    .option('--vote-for-deletion <hash>', 'Vote of the deletion a file in the network.' )
-    .option('--deletion-req <hash>', 'Supply a request for the deletion of a file in the network.' )
+    .option('--vote-for-deletion <hash>', 'Supply a request for the deletion of a file in the network.' )
     .option('--full-node-req', 'Lauching the process of becoming a full node')
     .option('--light-node-req <hash List File>', 'Launching the hosting of a set of files')
     .option('--search <hash | name | regexp>', "researching files in the network")
     .option('--stats', "Display some statistics about files in the network")
     .option('--peers', "Display the set of peer connected to the network")
     .option('--convert <hash> <file.ext>', "Convert a hosted file to different format according to .ext")
-    .option('--revoque-current-req', "Suppend the deletion request")
     .option('--fetch <hash | name>', "Write in the current directory the file hashed <hash>")
     .option('--id', "Getting the identity of the node")
     .option('--garbage-collect', "Remove unlinked or unpinned IPFS files")
-    .option('--reset', "Remove configuration files")
     .option('--list-files', 'List pinned files')
     .option('--author', 'The author')
     .parse(process.argv)
@@ -93,30 +90,16 @@ function getIpfsHashFromBytes32(bytes32Hex) {
   return hashStr
 }
 
-const ipfsHashtoBN = (hash) => {
-    try  {
-       const bn = web3.utils.toBN(web3.utils.toHex(hash))
-       return bn;
-    } catch (err) {
-        console.log("----------------------------------------------------------------")
-        console.log("=> ERROR: ", err)
-        console.log("----------------------------------------------------------------")
-    }
-}
-
 const bnto2uint = (bn) => {
-    try {
-        var k = 23;
-        gn = bn.toBuffer()
-        gn1 = gn.slice(0, k).toString()
-        gn2 = gn.slice(k, k*2).toString()
-        return [ ipfsHashtoBN(gn1), ipfsHashtoBN(gn2)]
-    } catch (err) {
-        console.log("----------------------------------------------------------------")
-        console.log("=> BN: ", bn)
-        console.log("----------------------------------------------------------------")
-        console.log(err)
-    }
+    //0,k; k,k*2; k*2,k*3; k*3, bn.length
+    var k = 23;
+    gn = bn.toBuffer()
+    gn1 = gn.slice(0, k).toString()
+    gn2 = gn.slice(k, k*2).toString()
+    return [ ipfsHashtoBN(gn1), ipfsHashtoBN(gn2)]
+}
+const ipfsHashtoBN = (hash) => {
+   return web3.utils.toBN(web3.utils.toHex(hash))
 }
 
 const fromBNtoIpfs = (bn) => {
@@ -203,108 +186,56 @@ const deletionRequest = (hash) => {
     account = config.account;
     contract = new web3.eth.Contract(abi);
     contract.options.address = config.address4;
-
-    var bn = ipfsHashtoBN(hash)
-    var bn_ = bnto2uint(bn)
-    var bn1 = bn_[0]
-    var bn2 = bn_[1]
-    web3.eth.getAccounts().then(accounts => {
-        contract.methods.isPending().call().then(pending => {
-            console.log(pending)
-            if (!pending)
-                contract.methods.setRequest(bn1, bn2)
-                                .send({from:account, value:cost})
-                                .on('receipt', inf => {
-                                    console.log(chalk.bold.blue('[ ! ]'), "Request successfully registered.");
-                                })
-            else {
-                console.log(chalk.bold.red('[ ! ]'),"Sorry there is already one pending request");
-            }
-        })
-    })
-}
-
-// It basicaly remove uneeded configuration files from
-// the conf directory.
-// That happens often while you have deployed multiple
-// instance of a collection of smart contracts.
-
-const reset = () => {
-    console.log(chalk.bold.green("[ ! ]"), "Configuration reseted successfully.")
-    console.log(chalk.bold.green("[ ! ]"), "You may need to setup the network before further developement")
-    const os = require("os");
-    const fs = require("fs");
-    const configFile = "~/.config/odh/bc";
-    try {
-        fs.rmdirSync(configFile);
-    } catch (err) {
-        console.log(chalk.bold.red("[ ! ]"), "An error occured from the data.")
-        console.log(err)
-    }
-    console.log(chalk.bold.green("[ ! ]"), "Configuration reseted successfully.")
-}
-
-const revokeReq = (hash) => {
-    var config = loadConfig();
-    bin = config.code4;
-    abi = config.abi4;
-    account = config.account;
-    contract = new web3.eth.Contract(abi);
-    contract.options.address = config.address4;
     web3.eth.getAccounts().then(accounts => {
         contract.methods.isPending().call().then(value => {
-            if (value) {
-                contract.methods.stopReq()
+            if (value["res"])
+                contract.methods.setHash(hash)
                                 .send({from:account, value:cost})
                                 .on('receipt', inf => {
                                     console.log(inf)
                                 })
-            } else {
-                console.log("[ * ] There is no registered request.")
+            else {
+                console.log(chalk.bold.red('[ ! ]'),"You cannot submit a deletion request, there is already on in process.");
             }
         })
     })
-
 }
+
 
 const votingForDeletion = () => {
     const config = loadConfig();
+
     account = config.account;
+
     const deletionReqContract = new web3.eth.Contract(config.abi4);
-    deletionReqContract.options.address = config.address4;
+    contract.options.address = config.address4;
+
     const votingContract = new web3.eth.Contract(config.abi3);
     votingContract.options.address = config.address3;
-    let deletionHash;
-
     // stop if the request is not pending
 
     // extract deletion hash from the blockchain
     //const deletionHash;
-    web3.eth.getAccounts().then(accounts => {
-        deletionReqContract.methods.getHash().call().then(res => {
-            console.log(res)
-        })
-    })
 
-    return;
- //   console.log("Do you really want to remove the file from the network? ")
- //   console.log("You can still inspect the file before voting")
- //   console.log("File Hash: ", chalk.bold.green(deletionHash))
- //   co(function *() {
- //       const vote = yield prompt("Your choice [Yes or No]: ");
- //       do {
- //              console.log("Please answer yes or no")
- //       } while (vote.toLowerCase() != "yes" || vote.toLowerCase() != "no");
- //       const choice = vote.toLowerCase() == "yes";
- //       if (choice) {
- //           console.log("You choose to delete the file")
- //           votingContract.methods.vote(choice);
- //       } else {
- //           console.log("You choose to  keep the file")
- //           votingContract.methods.vote(choice);
-//        console.log("Done!")
-//
-//    })
+    console.log("Do you really want to remove the file from the network? ")
+    console.log("You still inspect the file before voting")
+    console.log("File Hash: ", chalk.bold.green(deletionHash))
+    co(function *() {
+        const vote = prompt("Your choice [Yes or No]: ");
+        do {
+               console.log("Please answer yes or no")
+        } while (vote.toLowerCase() != "yes" || vote.toLowerCase() != "no");
+        const choice = vote.toLowerCase() == "yes";
+        if (choice) {
+            console.log("You choose to delete the file")
+            votingContract.methods.vote(choice);
+        } else {
+            console.log("You choose to  keep the file")
+            votingContract.methods.vote(choice);
+        }
+        console.log("Done!")
+
+    })
 }
 
 const setup = () => {
@@ -495,12 +426,14 @@ const ownershipRegistering = () => {
        //     var birthday = yield prompt("birthday: ")
             ipfs.add(buffer).then(retObj => {
                 var hash = retObj[0]["hash"];
-                var bn_ = bnto2uint(ipfsHashtoBN(hash))
-                var bn1 = bn_[0]
-                var bn2 = bn_[1]
+                var bn = ipfsHashtoBN(hash)
+                var bn_ = bnto2uint(bn)
+                console.log(gn_)
+                var bn1 = (bn_[0])
+                var bn2 = (bn_[1])
                 ipfs.pin.add(hash).then(inf => {
                     console.log(hash)
-                    contract.methods.setOwnership(bn1, bn2)
+                    contract.methods.setOwnership(Buffer.from(hash.toString()).toString())
                                     .send({from:account, value:cost})
                                     .on('receipt', arg => {
                                         console.log(arg)
@@ -663,8 +596,20 @@ fileInsertion = () => {
     console.log("adding ", program.add);
     const buffer = fs.readFileSync(program.add);
     ipfs.add(buffer).then(retObj => {
-        var hash = retObj[0].hash;
+        var hash = retObj[0]["hash"];
+        var bn = ipfsHashtoBN(hash)
+        var bn_ = bnto2uint(bn)
+        var bn1 = bn_[0]
+        var bn2 = bn_[1]
+        console.log(bn1, bn2)
+        console.log(bn)
+     //   h1 = hash.slice(0, hash.length/2)
+     //   h2 = hash.slice(hash.length/2, hash.length)
         console.log(chalk.bold.green("adding " + hash + " to ODH."))
+     //   h1_x = web3.utils.fromAscii(h1)
+     //   h2_x = web3.utils.fromAscii(h2)
+     //   console.log("h1 = (%s, %s) et h2 = (%s, %s)", h1_x, web3.utils.toUtf8(h1_x), h2_x, web3.utils.toUtf8(h2_x))
+     //   contract.methods.set(h1_x, h2_x).call({from:account});
         addHashToHashBase(hash)
         ipfs.add(fs.readFileSync(hashesBase)).then(retObj => {
             var hash2 = retObj[0]["hash"];
@@ -672,10 +617,7 @@ fileInsertion = () => {
             var bn_ = bnto2uint(bn)
             var bn1 = bn_[0]
             var bn2 = bn_[1]
-            console.log(bn1, bn2)
-            return contract.methods.set(bn1, bn2).send({from:account, value:cost}).catch(err => {
-                console.log(err)
-            })
+            return contract.methods.set(bn1, bn2).send({from:account, value:cost})
         })
     }).catch(err => {
         console.log(chalk.bold.red("[ ? ]"), " File insertion failed");
@@ -781,7 +723,7 @@ if (program.fetch) {
 }
 
 if (program.author) {
-    console.log("(c) MOKTAR ALHASAPI BAVA <moktaralhasapi@gmail.com>");
+    console.log("(c) MOKTAR ALHASAPI BAVA <moktaralhasapi@gmail.com>")
 }
 
 if (program.webui) {
@@ -794,21 +736,4 @@ if (program.owning) {
 
 if(program.claimOfOwnership) {
     ownershipClaim(program.claimOfOwnership);
-}
-
-if (program.deletionReq) {
-    deletionRequest(program.deletionReq)
-}
-
-if (program.revoqueCurrentReq) {
-    var currentHash = program.revoqueCurrentReq;
-    revokeReq(currentHash)    
-}
-
-if (program.voteForDeletion) {
-    votingForDeletion()
-}
-
-if (program.reset) {
-    reset();
 }

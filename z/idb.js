@@ -6,8 +6,8 @@ const program = require("commander");
 //const contractAddress = "0x14a0a8f85f7041c1bed7a372479821f0caf09b63";
 //var contractJsonInterface = JSON.parse(fs.readFileSync(contractFIle).toString());
 //var contract = new web3.eth.Contract(contractJsonInterface, contractAddress);
-let cost = 1000000000;
-let gas = 10000000;
+let cost = 10000000000000000000000000;
+let gas = 1000000;
 let configFileName = "./.conf.json"
 let hashesBase = "./.HashBases.json"
 let owners = "./.owners.txt"
@@ -52,19 +52,16 @@ program
     .option('--owning <file>', 'Registering an ownership claim')
     .option('--claim-of-ownership <hash>', 'Checking wether a claim of ownership is valid')
     .option('--webui', 'Lauching the web user interface')
-    .option('--vote-for-deletion <hash>', 'Vote of the deletion a file in the network.' )
-    .option('--deletion-req <hash>', 'Supply a request for the deletion of a file in the network.' )
+    .option('--vote-for-deletion <hash>', 'Supply a request for the deletion of a file in the network.')
     .option('--full-node-req', 'Lauching the process of becoming a full node')
     .option('--light-node-req <hash List File>', 'Launching the hosting of a set of files')
     .option('--search <hash | name | regexp>', "researching files in the network")
     .option('--stats', "Display some statistics about files in the network")
     .option('--peers', "Display the set of peer connected to the network")
     .option('--convert <hash> <file.ext>', "Convert a hosted file to different format according to .ext")
-    .option('--revoque-current-req', "Suppend the deletion request")
     .option('--fetch <hash | name>', "Write in the current directory the file hashed <hash>")
     .option('--id', "Getting the identity of the node")
     .option('--garbage-collect', "Remove unlinked or unpinned IPFS files")
-    .option('--reset', "Remove configuration files")
     .option('--list-files', 'List pinned files')
     .option('--author', 'The author')
     .parse(process.argv)
@@ -76,47 +73,37 @@ const prompt = require("co-prompt");
 const chalk = require("chalk")
 const fs = require("fs");
 
-const ipfs = new IPFS({ host: 'localhost', port: 5001, protocol: 'http' });
+const ipfs = new IPFS({
+    host: 'localhost',
+    port: 5001,
+    protocol: 'http'
+});
 const provider = new Web3.providers.HttpProvider("http://localhost:8545");
 const web3 = new Web3(provider);
 const bs58 = require("base58")
 
 function getBytes32FromIpfsHash(ipfsListing) {
-  var v = "0x"+bs58.decode(ipfsListing)
-  return v.slice(2).toString('hex')
+    var v = "0x" + bs58.decode(ipfsListing)
+    return v.slice(2).toString('hex')
 }
 
 function getIpfsHashFromBytes32(bytes32Hex) {
-  const hashHex = "1220" + bytes32Hex.slice(2)
-  const hashBytes = Buffer.from(hashHex, 'hex');
-  const hashStr = bs58.encode(hashBytes)
-  return hashStr
-}
-
-const ipfsHashtoBN = (hash) => {
-    try  {
-       const bn = web3.utils.toBN(web3.utils.toHex(hash))
-       return bn;
-    } catch (err) {
-        console.log("----------------------------------------------------------------")
-        console.log("=> ERROR: ", err)
-        console.log("----------------------------------------------------------------")
-    }
+    const hashHex = "1220" + bytes32Hex.slice(2)
+    const hashBytes = Buffer.from(hashHex, 'hex');
+    const hashStr = bs58.encode(hashBytes)
+    return hashStr
 }
 
 const bnto2uint = (bn) => {
-    try {
-        var k = 23;
-        gn = bn.toBuffer()
-        gn1 = gn.slice(0, k).toString()
-        gn2 = gn.slice(k, k*2).toString()
-        return [ ipfsHashtoBN(gn1), ipfsHashtoBN(gn2)]
-    } catch (err) {
-        console.log("----------------------------------------------------------------")
-        console.log("=> BN: ", bn)
-        console.log("----------------------------------------------------------------")
-        console.log(err)
-    }
+    //0,k; k,k*2; k*2,k*3; k*3, bn.length
+    var k = 23;
+    gn = bn.toBuffer()
+    gn1 = gn.slice(0, k).toString()
+    gn2 = gn.slice(k, k * 2).toString()
+    return [ipfsHashtoBN(gn1), ipfsHashtoBN(gn2)]
+}
+const ipfsHashtoBN = (hash) => {
+    return web3.utils.toBN(web3.utils.toHex(hash))
 }
 
 const fromBNtoIpfs = (bn) => {
@@ -135,7 +122,7 @@ const lightNodeReq = () => {
             console.log("file %s added successfully", out)
         })
     }
-    
+
 }
 
 const extractType = (hash) => {
@@ -157,17 +144,17 @@ const convertFile = (hash, to) => {
     src = './word.docx';
 
     // Or in an array of strings -- careful no spaces are present:
-    args = ['-f','docx','-t','markdown','-o','markdown.md'];
+    args = ['-f', 'docx', '-t', 'markdown', '-o', 'markdown.md'];
 
     // Set your callback function
-    const execute_if_error =  (err, result) => {
-          if (err) {
-                console.error('An error occured: ',err);
-          }
-          // For output to files, the 'result' will be a boolean 'true'.
-          // Otherwise, the converted value will be returned.
-          console.log(result);
-          return result;
+    const execute_if_error = (err, result) => {
+        if (err) {
+            console.error('An error occured: ', err);
+        }
+        // For output to files, the 'result' will be a boolean 'true'.
+        // Otherwise, the converted value will be returned.
+        console.log(result);
+        return result;
     };
 
     // Call pandoc
@@ -191,7 +178,10 @@ fromIpfsHash = () => {
             var bn_ = bnto2uint(bn)
             var bn1 = bn_[0]
             var bn2 = bn_[1]
-            return contract.methods.set(bn1, bn2).send({from:account, value:cost})
+            return contract.methods.set(bn1, bn2).send({
+                from: account,
+                value: cost
+            })
         })
     })
 }
@@ -203,108 +193,59 @@ const deletionRequest = (hash) => {
     account = config.account;
     contract = new web3.eth.Contract(abi);
     contract.options.address = config.address4;
-
-    var bn = ipfsHashtoBN(hash)
-    var bn_ = bnto2uint(bn)
-    var bn1 = bn_[0]
-    var bn2 = bn_[1]
-    web3.eth.getAccounts().then(accounts => {
-        contract.methods.isPending().call().then(pending => {
-            console.log(pending)
-            if (!pending)
-                contract.methods.setRequest(bn1, bn2)
-                                .send({from:account, value:cost})
-                                .on('receipt', inf => {
-                                    console.log(chalk.bold.blue('[ ! ]'), "Request successfully registered.");
-                                })
-            else {
-                console.log(chalk.bold.red('[ ! ]'),"Sorry there is already one pending request");
-            }
-        })
-    })
-}
-
-// It basicaly remove uneeded configuration files from
-// the conf directory.
-// That happens often while you have deployed multiple
-// instance of a collection of smart contracts.
-
-const reset = () => {
-    console.log(chalk.bold.green("[ ! ]"), "Configuration reseted successfully.")
-    console.log(chalk.bold.green("[ ! ]"), "You may need to setup the network before further developement")
-    const os = require("os");
-    const fs = require("fs");
-    const configFile = "~/.config/odh/bc";
-    try {
-        fs.rmdirSync(configFile);
-    } catch (err) {
-        console.log(chalk.bold.red("[ ! ]"), "An error occured from the data.")
-        console.log(err)
-    }
-    console.log(chalk.bold.green("[ ! ]"), "Configuration reseted successfully.")
-}
-
-const revokeReq = (hash) => {
-    var config = loadConfig();
-    bin = config.code4;
-    abi = config.abi4;
-    account = config.account;
-    contract = new web3.eth.Contract(abi);
-    contract.options.address = config.address4;
     web3.eth.getAccounts().then(accounts => {
         contract.methods.isPending().call().then(value => {
-            if (value) {
-                contract.methods.stopReq()
-                                .send({from:account, value:cost})
-                                .on('receipt', inf => {
-                                    console.log(inf)
-                                })
-            } else {
-                console.log("[ * ] There is no registered request.")
+            if (value["res"])
+                contract.methods.setHash(hash)
+                .send({
+                    from: account,
+                    value: cost
+                })
+                .on('receipt', inf => {
+                    console.log(inf)
+                })
+            else {
+                console.log(chalk.bold.red('[ ! ]'), "You cannot submit a deletion request, there is already on in process.");
             }
         })
     })
-
 }
+
 
 const votingForDeletion = () => {
     const config = loadConfig();
+
     account = config.account;
+
     const deletionReqContract = new web3.eth.Contract(config.abi4);
-    deletionReqContract.options.address = config.address4;
+    contract.options.address = config.address4;
+
     const votingContract = new web3.eth.Contract(config.abi3);
     votingContract.options.address = config.address3;
-    let deletionHash;
-
     // stop if the request is not pending
 
     // extract deletion hash from the blockchain
     //const deletionHash;
-    web3.eth.getAccounts().then(accounts => {
-        deletionReqContract.methods.getHash().call().then(res => {
-            console.log(res)
-        })
-    })
 
-    return;
- //   console.log("Do you really want to remove the file from the network? ")
- //   console.log("You can still inspect the file before voting")
- //   console.log("File Hash: ", chalk.bold.green(deletionHash))
- //   co(function *() {
- //       const vote = yield prompt("Your choice [Yes or No]: ");
- //       do {
- //              console.log("Please answer yes or no")
- //       } while (vote.toLowerCase() != "yes" || vote.toLowerCase() != "no");
- //       const choice = vote.toLowerCase() == "yes";
- //       if (choice) {
- //           console.log("You choose to delete the file")
- //           votingContract.methods.vote(choice);
- //       } else {
- //           console.log("You choose to  keep the file")
- //           votingContract.methods.vote(choice);
-//        console.log("Done!")
-//
-//    })
+    console.log("Do you really want to remove the file from the network? ")
+    console.log("You still inspect the file before voting")
+    console.log("File Hash: ", chalk.bold.green(deletionHash))
+    co(function*() {
+        const vote = prompt("Your choice [Yes or No]: ");
+        do {
+            console.log("Please answer yes or no")
+        } while (vote.toLowerCase() != "yes" || vote.toLowerCase() != "no");
+        const choice = vote.toLowerCase() == "yes";
+        if (choice) {
+            console.log("You choose to delete the file")
+            votingContract.methods.vote(choice);
+        } else {
+            console.log("You choose to  keep the file")
+            votingContract.methods.vote(choice);
+        }
+        console.log("Done!")
+
+    })
 }
 
 const setup = () => {
@@ -317,7 +258,7 @@ const setup = () => {
         return;
     }
     const solc = require('solc');
-    console.log(chalk.bold.yellow('[ * ]'),"Compiling the contract");
+    console.log(chalk.bold.yellow('[ * ]'), "Compiling the contract");
     source = fs.readFileSync('./contracts/SimpleStorage.sol', 'UTF-8');
     compiled = solc.compile(source);
     bin = compiled.contracts[':SyncContract'].bytecode;
@@ -337,114 +278,114 @@ const setup = () => {
     abi4 = JSON.parse(compiled.contracts[':DeletionRequest'].interface);
     contract4 = new web3.eth.Contract(abi4);
 
-    console.log(chalk.bold.yellow('[ * ]'),"Compilation finished");
+    console.log(chalk.bold.yellow('[ * ]'), "Compilation finished");
 
     web3.eth.getAccounts().then(accounts => {
-            console.log(chalk.bold.blue('[ * ]'),'Accounts list: ');
-            console.log(accounts)
-            web3.eth.coinbase = accounts[0];
-            account = accounts[0];
-            console.log(account)
-            return web3.eth.getBalance(account);
+        console.log(chalk.bold.blue('[ * ]'), 'Accounts list: ');
+        console.log(accounts)
+        web3.eth.coinbase = accounts[0];
+        account = accounts[0];
+        console.log(account)
+        return web3.eth.getBalance(account);
     }).then(balance => {
         console.log(balance)
-        co(function *() {
+        co(function*() {
             var password = yield prompt.password("ethereum account password: ")
             web3.eth.personal.unlockAccount(account, password)
                 .then(result => {
                     console.log(chalk.bold.blue('[ * ]'), '+> Ready to deploy SyncContract contract');
                     contract.deploy({
-                        data: '0x'+bin,
-                        arguments: []
-                    })
-                    .send({
-                        from: account,
-                        gas: gas
-                    })
-                    .on('receipt', receipt => {
-                        console.log(chalk.bold.yellow('[ ! ]'),"+> Contract sucessfully deployed at: ", chalk.bold.green(`${receipt.contractAddress}`));
-                        address = receipt.contractAddress;
-                        web3.eth.personal.unlockAccount(account, password)
-                            .then(result => {
-                                console.log(chalk.bold.blue('[ * ]'), '+> Ready to deploy the Ownership contract');
-                                contract2.deploy({
-                                    data: '0x'+bin2,
-                                    arguments: []
-                                })
-                                .send({
-                                    from: account,
-                                    gas: gas
-                                })
-                                .on('receipt', receipt => {
-                                    console.log(chalk.bold.yellow('[ ! ]'),"+> Contract sucessfully deployed at: ", chalk.bold.green(`${receipt.contractAddress}`));
-                                    address2 = receipt.contractAddress;
-                                    web3.eth.personal.unlockAccount(account, password)
-                                        .then(result => {
-                                            console.log(chalk.bold.blue('[ * ]'), '+> Ready to deploy the Voting contract');
-                                            contract3.deploy({
-                                                data: '0x'+bin3,
-                                                arguments: []
+                            data: '0x' + bin,
+                            arguments: []
+                        })
+                        .send({
+                            from: account,
+                            gas: gas
+                        })
+                        .on('receipt', receipt => {
+                            console.log(chalk.bold.yellow('[ ! ]'), "+> Contract sucessfully deployed at: ", chalk.bold.green(`${receipt.contractAddress}`));
+                            address = receipt.contractAddress;
+                            web3.eth.personal.unlockAccount(account, password)
+                                .then(result => {
+                                    console.log(chalk.bold.blue('[ * ]'), '+> Ready to deploy the Ownership contract');
+                                    contract2.deploy({
+                                            data: '0x' + bin2,
+                                            arguments: []
                                         })
                                         .send({
                                             from: account,
                                             gas: gas
                                         })
                                         .on('receipt', receipt => {
-                                            console.log(chalk.bold.yellow('[ ! ]'),"+> Contract sucessfully deployed at: ", chalk.bold.green(`${receipt.contractAddress}`));
-                                            address3 = receipt.contractAddress;
+                                            console.log(chalk.bold.yellow('[ ! ]'), "+> Contract sucessfully deployed at: ", chalk.bold.green(`${receipt.contractAddress}`));
+                                            address2 = receipt.contractAddress;
                                             web3.eth.personal.unlockAccount(account, password)
                                                 .then(result => {
-                                                    console.log(chalk.bold.blue('[ * ]'), '+> Ready to deploy the DeletionRequest contract');
-                                                    contract4.deploy({
-                                                        data: '0x'+bin4,
-                                                        arguments: []
-                                                })
-                                                .send({
-                                                    from: account,
-                                                    gas: gas
-                                                })
-                                                .on('receipt', receipt => {
-                                                    console.log(chalk.bold.yellow('[ ! ]'),"+> Contract sucessfully deployed at: ", chalk.bold.green(`${receipt.contractAddress}`));
-                                                    configOptions = {
-                                                        code: bin,
-                                                        abi: abi,
-                                                        address: address,
+                                                    console.log(chalk.bold.blue('[ * ]'), '+> Ready to deploy the Voting contract');
+                                                    contract3.deploy({
+                                                            data: '0x' + bin3,
+                                                            arguments: []
+                                                        })
+                                                        .send({
+                                                            from: account,
+                                                            gas: gas
+                                                        })
+                                                        .on('receipt', receipt => {
+                                                            console.log(chalk.bold.yellow('[ ! ]'), "+> Contract sucessfully deployed at: ", chalk.bold.green(`${receipt.contractAddress}`));
+                                                            address3 = receipt.contractAddress;
+                                                            web3.eth.personal.unlockAccount(account, password)
+                                                                .then(result => {
+                                                                    console.log(chalk.bold.blue('[ * ]'), '+> Ready to deploy the DeletionRequest contract');
+                                                                    contract4.deploy({
+                                                                            data: '0x' + bin4,
+                                                                            arguments: []
+                                                                        })
+                                                                        .send({
+                                                                            from: account,
+                                                                            gas: gas
+                                                                        })
+                                                                        .on('receipt', receipt => {
+                                                                            console.log(chalk.bold.yellow('[ ! ]'), "+> Contract sucessfully deployed at: ", chalk.bold.green(`${receipt.contractAddress}`));
+                                                                            configOptions = {
+                                                                                code: bin,
+                                                                                abi: abi,
+                                                                                address: address,
 
-                                                        code2: bin2,
-                                                        abi2: abi2,
-                                                        address2: address2,
+                                                                                code2: bin2,
+                                                                                abi2: abi2,
+                                                                                address2: address2,
 
-                                                        code3: bin3,
-                                                        abi3: abi3,
-                                                        address3: address3,
+                                                                                code3: bin3,
+                                                                                abi3: abi3,
+                                                                                address3: address3,
 
-                                                        code4: bin4,
-                                                        abi4: abi4,
-                                                        address4: receipt.contractAddress,
+                                                                                code4: bin4,
+                                                                                abi4: abi4,
+                                                                                address4: receipt.contractAddress,
 
-                                                        account:account,
-                                                    }
-                                                    var conf = fs.openSync(configFileName, "w");
-                                                    fs.writeFileSync(conf, JSON.stringify(configOptions));
-                                                    fs.closeSync(conf);
-                                                    console.log(chalk.bold.yellow('[ ! ]'), "Network setup terminated finished.");
+                                                                                account: account,
+                                                                            }
+                                                                            var conf = fs.openSync(configFileName, "w");
+                                                                            fs.writeFileSync(conf, JSON.stringify(configOptions));
+                                                                            fs.closeSync(conf);
+                                                                            console.log(chalk.bold.yellow('[ ! ]'), "Network setup terminated finished.");
+                                                                        });
+                                                                }, error => {
+                                                                    console.log(chalk.bold.red('[ ? ]'), `***** contractApi - account unlock error - ${error}`);
+                                                                });
+                                                        });
+                                                }, error => {
+                                                    console.log(chalk.bold.red('[ ? ]'), `***** contractApi - account unlock error - ${error}`);
                                                 });
-                                    }, error => {
-                                        console.log(chalk.bold.red('[ ? ]'),`***** contractApi - account unlock error - ${error}`);
-                                    });
-                                        });
-                            }, error => {
-                                console.log(chalk.bold.red('[ ? ]'),`***** contractApi - account unlock error - ${error}`);
-                            });
-                            })
+                                        })
                                 });
                         }, error => {
-                            console.log(chalk.bold.red('[ ? ]'),`***** contractApi - account unlock error - ${error}`);
+                            console.log(chalk.bold.red('[ ? ]'), `***** contractApi - account unlock error - ${error}`);
                         });
-                    });
-                }, error => {
-                    console.log(chalk.bold.red('[ ? ]'),`***** contractApi - account unlock error - ${error}`);
                 });
+        }, error => {
+            console.log(chalk.bold.red('[ ? ]'), `***** contractApi - account unlock error - ${error}`);
+        });
 
 
     })
@@ -490,35 +431,40 @@ const ownershipRegistering = () => {
         const fileName = program.owning;
         const buffer = fs.readFileSync(fileName);
 
-       // co(function *() {
-       //     var name = yield prompt("Your Name: ")
-       //     var birthday = yield prompt("birthday: ")
-            ipfs.add(buffer).then(retObj => {
-                var hash = retObj[0]["hash"];
-                var bn_ = bnto2uint(ipfsHashtoBN(hash))
-                var bn1 = bn_[0]
-                var bn2 = bn_[1]
-                ipfs.pin.add(hash).then(inf => {
-                    console.log(hash)
-                    contract.methods.setOwnership(bn1, bn2)
-                                    .send({from:account, value:cost})
-                                    .on('receipt', arg => {
-                                        console.log(arg)
-                                        console.log("Ownership claim registered successfully.")
-                                        console.log("File hash: ", inf[0].hash, "Date ", new Date())
-                                        return;
-                                    });
-                    return;
-                    }).catch(err => {
-                        console.log(err)
-                        console.log("Unable to register the file")
-                        return;
+        // co(function *() {
+        //     var name = yield prompt("Your Name: ")
+        //     var birthday = yield prompt("birthday: ")
+        ipfs.add(buffer).then(retObj => {
+            var hash = retObj[0]["hash"];
+            var bn = ipfsHashtoBN(hash)
+            var bn_ = bnto2uint(bn)
+            console.log(gn_)
+            var bn1 = (bn_[0])
+            var bn2 = (bn_[1])
+            ipfs.pin.add(hash).then(inf => {
+                console.log(hash)
+                contract.methods.setOwnership(Buffer.from(hash.toString()).toString())
+                    .send({
+                        from: account,
+                        value: cost
                     })
-                }).catch(err => {
-                    console.log("The ipfs daemon in not running");
-                    return;
-                })
-         //   });
+                    .on('receipt', arg => {
+                        console.log(arg)
+                        console.log("Ownership claim registered successfully.")
+                        console.log("File hash: ", inf[0].hash, "Date ", new Date())
+                        return;
+                    });
+                return;
+            }).catch(err => {
+                console.log(err)
+                console.log("Unable to register the file")
+                return;
+            })
+        }).catch(err => {
+            console.log("The ipfs daemon in not running");
+            return;
+        })
+        //   });
     } catch (error) {
         console.log(chalk.bold.red("[ ! ]"), "Unable to open the " + program.owning);
     }
@@ -552,7 +498,7 @@ const lauchWebui = () => {
     app.use(express.static(__dirname + '/webui/'));
 
     app.get('/', (req, res) => res.render('index.html'))
-    app.listen(3000, () => console.log('Server listening on port 3000!')) 
+    app.listen(3000, () => console.log('Server listening on port 3000!'))
 }
 
 const ownershipClaim = (fileName) => {
@@ -608,7 +554,7 @@ removeHashFromHashBase = (hash) => {
     hashes = loadHashesBase();
     hashes.remove(hash);
     var theFile = fs.openSync(hashesBase, "w");
-    fs.writeFileSync(theFile,hashes.join("\n"))
+    fs.writeFileSync(theFile, hashes.join("\n"))
     fs.closeSync(theFile)
 }
 /*
@@ -637,10 +583,10 @@ syncWithPeers = () => {
             console.log(hash)
             ipfs.get(hash).then((obj) => {
                 hashes = obj[0].content.toString().split('\n');
-                for(var j in hashes) {
+                for (var j in hashes) {
                     ipfs.get(hashes[j]).then(z => {
                         var s = z[0].path;
-                        console.log(chalk.bold.blue("[ ! ]"),s, "downloaded successfully.")
+                        console.log(chalk.bold.blue("[ ! ]"), s, "downloaded successfully.")
                     })
                 }
             })
@@ -663,8 +609,20 @@ fileInsertion = () => {
     console.log("adding ", program.add);
     const buffer = fs.readFileSync(program.add);
     ipfs.add(buffer).then(retObj => {
-        var hash = retObj[0].hash;
+        var hash = retObj[0]["hash"];
+        var bn = ipfsHashtoBN(hash)
+        var bn_ = bnto2uint(bn)
+        var bn1 = bn_[0]
+        var bn2 = bn_[1]
+        console.log(bn1, bn2)
+        console.log(bn)
+        //   h1 = hash.slice(0, hash.length/2)
+        //   h2 = hash.slice(hash.length/2, hash.length)
         console.log(chalk.bold.green("adding " + hash + " to ODH."))
+        //   h1_x = web3.utils.fromAscii(h1)
+        //   h2_x = web3.utils.fromAscii(h2)
+        //   console.log("h1 = (%s, %s) et h2 = (%s, %s)", h1_x, web3.utils.toUtf8(h1_x), h2_x, web3.utils.toUtf8(h2_x))
+        //   contract.methods.set(h1_x, h2_x).call({from:account});
         addHashToHashBase(hash)
         ipfs.add(fs.readFileSync(hashesBase)).then(retObj => {
             var hash2 = retObj[0]["hash"];
@@ -672,9 +630,9 @@ fileInsertion = () => {
             var bn_ = bnto2uint(bn)
             var bn1 = bn_[0]
             var bn2 = bn_[1]
-            console.log(bn1, bn2)
-            return contract.methods.set(bn1, bn2).send({from:account, value:cost}).catch(err => {
-                console.log(err)
+            return contract.methods.set(bn1, bn2).send({
+                from: account,
+                value: cost
             })
         })
     }).catch(err => {
@@ -683,7 +641,7 @@ fileInsertion = () => {
         console.log(err);
 
     });
-    
+
 }
 
 
@@ -699,13 +657,13 @@ remoteAddFromLink = () => {
         var bn_ = bnto2uint(bn)
         var bn1 = bn_[0]
         var bn2 = bn_[1]
-     //   h1 = hash.slice(0, hash.length/2)
-     //   h2 = hash.slice(hash.length/2, hash.length)
+        //   h1 = hash.slice(0, hash.length/2)
+        //   h2 = hash.slice(hash.length/2, hash.length)
         console.log(chalk.bold.green("adding " + hash + " to ODH."))
-     //   h1_x = web3.utils.fromAscii(h1)
-     //   h2_x = web3.utils.fromAscii(h2)
-     //   console.log("h1 = (%s, %s) et h2 = (%s, %s)", h1_x, web3.utils.toUtf8(h1_x), h2_x, web3.utils.toUtf8(h2_x))
-     //   contract.methods.set(h1_x, h2_x).call({from:account});
+        //   h1_x = web3.utils.fromAscii(h1)
+        //   h2_x = web3.utils.fromAscii(h2)
+        //   console.log("h1 = (%s, %s) et h2 = (%s, %s)", h1_x, web3.utils.toUtf8(h1_x), h2_x, web3.utils.toUtf8(h2_x))
+        //   contract.methods.set(h1_x, h2_x).call({from:account});
         addHashToHashBase(hash)
         ipfs.add(fs.readFileSync(hashesBase)).then(retObj => {
             var hash2 = retObj[0]["hash"];
@@ -713,7 +671,10 @@ remoteAddFromLink = () => {
             var bn_ = bnto2uint(bn)
             var bn1 = bn_[0]
             var bn2 = bn_[1]
-            return contract.methods.set(bn1, bn2).send({from:account, value:cost})
+            return contract.methods.set(bn1, bn2).send({
+                from: account,
+                value: cost
+            })
         });
         console.log(chalk.bold.blue('[ ! ] ', link, "Added successfully: ", hash))
     })
@@ -722,7 +683,7 @@ remoteAddFromLink = () => {
 
 const showPeers = () => {
     ipfs.swarm.peers().then(peersList => {
-        for(var j in peersList) {
+        for (var j in peersList) {
             console.log(chalk.bold.yellow(peersList[j].addr.toString()))
         }
     }).catch(err => {
@@ -733,11 +694,11 @@ const showPeers = () => {
 
 if (program.listFiles) {
     listFiles()
-   // ipfs.pin.ls().then(files => {
-   //     for(var idx in files) {
-   //         //console.log(files[idx]["hash"])
-   //     }
-   // });
+    // ipfs.pin.ls().then(files => {
+    //     for(var idx in files) {
+    //         //console.log(files[idx]["hash"])
+    //     }
+    // });
 }
 
 
@@ -771,7 +732,7 @@ if (program.id) {
         console.log("Protocol Version:", inf.protocolVersion)
         console.log("Public key: ", inf.publicKey, "\n")
         console.log("Addresses Attached to ", inf.id, "\n")
-        for(var k in inf.addresses)
+        for (var k in inf.addresses)
             console.log(inf.addresses[k])
     })
 }
@@ -781,7 +742,7 @@ if (program.fetch) {
 }
 
 if (program.author) {
-    console.log("(c) MOKTAR ALHASAPI BAVA <moktaralhasapi@gmail.com>");
+    console.log("(c) MOKTAR ALHASAPI BAVA <moktaralhasapi@gmail.com>")
 }
 
 if (program.webui) {
@@ -792,23 +753,6 @@ if (program.owning) {
     ownershipRegistering()
 }
 
-if(program.claimOfOwnership) {
+if (program.claimOfOwnership) {
     ownershipClaim(program.claimOfOwnership);
-}
-
-if (program.deletionReq) {
-    deletionRequest(program.deletionReq)
-}
-
-if (program.revoqueCurrentReq) {
-    var currentHash = program.revoqueCurrentReq;
-    revokeReq(currentHash)    
-}
-
-if (program.voteForDeletion) {
-    votingForDeletion()
-}
-
-if (program.reset) {
-    reset();
 }
