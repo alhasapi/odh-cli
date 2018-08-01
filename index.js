@@ -56,7 +56,7 @@ program
     .option('--deletion-req <hash>', 'Supply a request for the deletion of a file in the network.' )
     .option('--full-node-req', 'Lauching the process of becoming a full node')
     .option('--light-node-req <hash List File>', 'Launching the hosting of a set of files')
-    .option('--search <hash | name | regexp>', "researching files in the network")
+    .option('--exist <hash | name | regexp>', "verifying if a file is in the network")
     .option('--stats', "Display some statistics about files in the network")
     .option('--peers', "Display the set of peer connected to the network")
     .option('--convert <hash> <file.ext>', "Convert a hosted file to different format according to .ext")
