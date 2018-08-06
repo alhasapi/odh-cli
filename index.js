@@ -727,9 +727,23 @@ const showPeers = () => {
         }
     }).catch(err => {
         console.log(chalk.bold.red('[ ! ]'), "The IPFS daemon is not running");
+        console.log(err)
     })
 }
 
+const exists = (hash) => {
+    const hashes = loadHashesBase();
+    let answer = false;
+    for (var i in hashes) {
+        if(hashes[i] == hash) {
+            answer = true
+        }
+    }
+    if (answer) {
+    } else {
+        console.log(chalk.bold.red("[ ! ]"), chalk.bold.green(hash) + " Is not index")
+    }
+}
 
 if (program.listFiles) {
     listFiles()
