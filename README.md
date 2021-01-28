@@ -4,7 +4,7 @@ What is ODH?
 ===========
 
 ODH is a decentralized, peer-to-peer open documents sharing system that leverages the ethereum blockchain
-to enhance the digital self-sovereignty of its users and introduces a voting system for a global governance
+to enhance the digital self-sovereignty of its users. In addition to that it introduces a voting system for a global governance
 of the system by its users.
 
 Documents are stored (partially or entirely) by its users thanks to the IPFS protocol, a transparent and reliable 
