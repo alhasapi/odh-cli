@@ -479,12 +479,12 @@ $ odh --list-files
 # Future work
 
 In a near future, we've planned to:
-- Re-implementation of ODH in Haskell
+- Re-implement ODH in Haskell
 - Switch to proof-of-stake based blockchains like (EOS or Tezos)
-- Implementation of a peer finding algorithm for auto-connection to peers on top of the IPFS SWARM protocol.
-- A formalization in Coq of all algorithms involved (peers finding, voting, synchronization)
-- Using program extraction methods to derive the program from the proofs.
-- Implementing a better Web UI, to make  ODH user friendly and accessible for non technical people.
+- Implement of a peer finding algorithm for auto-connection to peers on top of the IPFS SWARM protocol.
+- A formalization in Coq of all algorithms involved (peers finding, voting, synchronization) and use 
+  program extraction methods to derive the program from the proofs.
+- Implement a better Web UI, to make  ODH user friendly and accessible for non technical people.
 - Decoupling components of ODH in order to make components of ODH reusable for other purpose (video sharing, NLP)
 
 
